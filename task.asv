@@ -1,0 +1,113 @@
+function [res] = task(M, minimize, debug)
+    copyM = M;
+    size = length(M);
+    
+    % Матрица для маркировки нулей
+    Z = zeros(size, size);
+    % Массивы для выделения строк и столбцов
+    selectedCols = zeros(1, size);
+    selectedRows = zeros(1, size);
+    
+    % Вычитаем минимум по столбцу
+    M = M - min(M);
+    %Вычитаем минимум по строке
+    M = M';
+    M = M - min(M);
+    M = M';
+    
+    % Предварительный этап - строим СНН
+    nnCount = 0;
+    for i = 1:size
+       for j = 1:size
+           if M(j, i) == 0
+               if max(Z(j, :)) == 0
+                  Z(j, i) = 1;
+                  nnCount = nnCount + 1;
+                  break;
+               end
+           end
+       end
+    end
+    
+    print(M, Z, selectedRows, selectedCols, size, debug);
+    
+    remarkNeeds = 1;
+    while 1
+        if remarkNeeds
+            if nnCount > size
+                for i = 1:dim
+                    for j = 1:dim
+                        if Z(i, j) == 1
+                            res = res + copyM(i, j);
+                        end
+                    end
+                end
+                
+                break;
+            end
+            
+            [selectedRows, selectedCols] = mark(Z, size);
+        end
+        break;
+        
+        [col, row] = findZero(M, selectedCols, selectedRows, size);
+        
+        % Среди невыделенных элементов присутствуют нули?
+        if col ~= -1
+            % Отмечаем 0'
+            Z(row, col) = 2;
+            
+            % В одной строке с 0' есть 0*?
+            starMarkedExists = 0;
+            for i = 1:dim
+                if Z(row, i) == 1
+                    markedRow = row;
+                    markedCol = i;
+                    starMarkedExists = 1;
+                    break;
+                end
+            end
+            
+            % Да
+            if starMarkedExists == 1
+                selectedCols(markedCol) = 0;
+                selectedRows(markedRow) = 1;
+
+            % Нет
+            else
+                [Z] = makeL(Z, size, col, row);
+                selectedCols(col) = 1;
+                remarkNeeds = 1;
+            end
+        % Нет    
+        else
+            % Находим минимальный элемент матрицы
+            matrixMin = max(max(M));
+            for i = 1:dim
+                if selectedRows(i) == 1
+                    continue;
+                end
+                for j = 1:dim
+                    if selectedCols(j) == 1
+                        continue;
+                    end
+                    if M(i, j) ~= 0 && M(i, j) < matrixMin
+                        matrixMin = M(i, j);
+                    end
+                end
+            end
+            % Выполняем эквивалентное преобразование
+            for i = 1:dim
+                for j = 1:dim
+                    % Вычитаем минимум из невыделенных столбцов
+                    if selectedCols(j) == 0
+                       M(i, j) = M(i, j) - matrixMin;
+                    end
+                    % Добавляем минимум к выделенным строкам
+                    if selectedRows(i) == 1
+                       M(i, j) = M(i, j) + matrixMin;
+                    end
+                end
+            end
+        end
+    end
